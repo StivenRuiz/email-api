@@ -1,36 +1,41 @@
 const express = require('express');
+const fs = require('fs');
 const { exec } = require('child_process');
 const app = express();
-const PORT = 3000;
+const port = 3000;
 
 app.use(express.json());
 
 app.post('/send-email', (req, res) => {
-  const { to, subject, message } = req.body;
+  const { to, subject, name, email, templateName } = req.body;
 
-  if (!to || !subject || !message) {
-    return res.status(400).json({ error: 'Missing to, subject, or message' });
-  }
+  // Cargar plantilla
+  let template = fs.readFileSync(`./templates/${templateName}.html`, 'utf8');
 
-  const safeTo = to.replace(/[^a-zA-Z0-9@._-]/g, '');
-  const safeSubject = subject.replace(/"/g, "'"); // evitar romper comillas
-  const safeMessage = message.replace(/"/g, "'");
-  const encodedSubject = `=?UTF-8?B?${Buffer.from(safeSubject).toString('base64')}?=`;
-  const escapedMessage = message.replace(/"/g, "'");
+  // Reemplazar marcadores en plantilla
+  template = template.replace('{{nombre}}', name);
+  template = template.replace('{{correo}}', email);
 
-  const cmd = `echo -e "To: ${safeTo}\nSubject: ${encodedSubject}\nContent-Type: text/plain; charset=UTF-8\n\n${escapedMessage}" | msmtp ${safeTo}`;
+  // Guardar contenido en archivo temporal
+  const tempPath = '/tmp/email.html';
+  fs.writeFileSync(tempPath, html);
 
+  // Enviar con mutt
+  const cmd = `mutt -e "set content_type=text/html" -s "${subject}" ${to} < ${tempPath}`;
 
-   exec(cmd, (error, stdout, stderr) => {
+  exec(cmd, (error, stdout, stderr) => {
     if (error) {
-      console.error(stderr);
+      console.error(`Error: ${error.message}`);
       return res.status(500).json({ error: 'Failed to send email' });
     }
-
-    res.json({ message: 'Email sent successfully' });
+    if (stderr) {
+      console.error(`stderr: ${stderr}`);
+    }
+    console.log(`stdout: ${stdout}`);
+    res.json({ success: true, message: 'Email sent' });
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`📬 Email API listening on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Email API listening on port ${port}`);
 });
