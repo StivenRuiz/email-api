@@ -18,7 +18,7 @@ app.post('/send-email', (req, res) => {
 
   // Guardar contenido en archivo temporal
   const tempPath = '/tmp/email.html';
-  fs.writeFileSync(tempPath, html);
+  fs.writeFileSync(tempPath, template);
 
   // Enviar con mutt
   const cmd = `mutt -e "set content_type=text/html" -s "${subject}" ${to} < ${tempPath}`;
